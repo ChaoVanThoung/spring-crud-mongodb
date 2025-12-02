@@ -1,18 +1,22 @@
 package co.istad.mongodb.service.impl;
 
 import co.istad.mongodb.domain.User;
+import co.istad.mongodb.dto.FilterDto;
 import co.istad.mongodb.dto.UserRequest;
 import co.istad.mongodb.dto.UserResponse;
+import co.istad.mongodb.filter.FilteringFactory;
 import co.istad.mongodb.mapper.UserMapper;
 import co.istad.mongodb.repository.UserRepository;
 import co.istad.mongodb.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -23,11 +27,14 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
 
     @Override
-    public List<UserResponse> findAll() {
+    public Page<UserResponse> findAll(int page, int size) {
 
-        List<User> users = userRepository.findAll();
+        Sort sortName = Sort.by(Sort.Direction.DESC, "name");
+        Pageable pageable = PageRequest.of(page, size, sortName);
 
-        return users.stream().map(userMapper::toUserResponse).toList();
+        Page<User> users = userRepository.findAll(pageable);
+
+        return users.map(userMapper::toUserResponse);
     }
 
     @Override
@@ -69,5 +76,17 @@ public class UserServiceImpl implements UserService {
                 )
         );
         userRepository.delete(user);
+    }
+
+    @Override
+    public Page<UserResponse> filterByUsers(FilterDto filterDto, int page, int size) {
+
+        Sort sortName = Sort.by(Sort.Direction.DESC, "name");
+        Pageable pageable = PageRequest.of(page, size, sortName);
+
+        Page<User> filteredUsers = userRepository.findAllWithFilter(User.class,
+                FilteringFactory.parseFromParams(filterDto.filter(),User.class), pageable);
+
+        return filteredUsers.map(userMapper::toUserResponse);
     }
 }
